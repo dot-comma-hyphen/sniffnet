@@ -282,56 +282,70 @@ pub fn modify_or_insert_in_map(
     exchanged_bytes: u128,
     tcp_flags: (bool, bool),
 ) -> (TrafficDirection, Service) {
-    let mut traffic_direction = TrafficDirection::default();
-    let mut service = Service::Unknown;
-
-    if !info_traffic_msg.map.contains_key(key) {
-        // first occurrence of key (in this time interval)
-
-        let my_interface_addresses = cs.get_addresses();
-        // determine traffic direction
-        let source_ip = &key.address1;
-        let destination_ip = &key.address2;
-        traffic_direction = get_traffic_direction(
-            source_ip,
-            destination_ip,
-            key.port1,
-            key.port2,
-            my_interface_addresses,
-        );
-        // determine upper layer service
-        service = get_service(key, traffic_direction, my_interface_addresses);
-    }
-
     let timestamp = info_traffic_msg.last_packet_timestamp;
 
-    if tcp_flags.0 && !tcp_flags.1 {
-        // SYN packet
-        // We need to store the timestamp of this SYN packet, to be able to calculate the latency
-        // when the corresponding SYN-ACK packet is received.
-        // The key of the SYN-ACK packet will be the inverse of the current key.
-        if let Some(info) = info_traffic_msg.map.get_mut(&key.to_inversed_key()) {
-            info.syn_info = Some((timestamp, traffic_direction));
-        }
-    } else if tcp_flags.0 && tcp_flags.1 {
-        // SYN-ACK packet
-        // This is the ACK to a SYN packet.
-        // We can now calculate the latency.
-        if let Some(info) = info_traffic_msg.map.get_mut(key) {
-            if let Some((syn_timestamp, syn_traffic_direction)) = info.syn_info {
-                if syn_traffic_direction.eq(&traffic_direction) {
-                    if let (Some(ts), Some(syn_ts)) =
-                        (timestamp.to_usecs(), syn_timestamp.to_usecs())
-                    {
-                        info.latency = Some((ts - syn_ts) / 1000);
+    let (traffic_direction, service) =
+        if let Some(info) = info_traffic_msg.map.get(key) {
+            (info.traffic_direction, info.service)
+        } else {
+            let my_interface_addresses = cs.get_addresses();
+            let direction = get_traffic_direction(
+                &key.address1,
+                &key.address2,
+                key.port1,
+                key.port2,
+                my_interface_addresses,
+            );
+            let service = get_service(key, direction, my_interface_addresses);
+            (direction, service)
+        };
+
+    // manage latency
+    if key.protocol == Protocol::TCP {
+        if tcp_flags.0 && !tcp_flags.1 {
+            // SYN packet
+            let inverse_key = key.to_inversed_key();
+            let my_interface_addresses = cs.get_addresses();
+            let inverse_direction = get_traffic_direction(
+                &inverse_key.address1,
+                &inverse_key.address2,
+                inverse_key.port1,
+                inverse_key.port2,
+                my_interface_addresses,
+            );
+            let inverse_service =
+                get_service(&inverse_key, inverse_direction, my_interface_addresses);
+
+            info_traffic_msg
+                .map
+                .entry(inverse_key)
+                .or_insert_with(|| InfoAddressPortPair {
+                    traffic_direction: inverse_direction,
+                    service: inverse_service,
+                    ..Default::default()
+                })
+                .syn_info = Some((timestamp, traffic_direction));
+        } else if tcp_flags.0 && tcp_flags.1 {
+            // SYN-ACK packet
+            if let Some(info) = info_traffic_msg.map.get_mut(key) {
+                if let Some((syn_timestamp, syn_traffic_direction)) = info.syn_info {
+                    if syn_traffic_direction != traffic_direction {
+                        if let (Some(ts), Some(syn_ts)) =
+                            (timestamp.to_usecs(), syn_timestamp.to_usecs())
+                        {
+                            let latency = (ts - syn_ts) / 1000;
+                            if latency >= 0 {
+                                info.latency = Some(latency);
+                            }
+                        }
+                        info.syn_info = None;
                     }
-                    info.syn_info = None;
                 }
             }
         }
     }
 
-    let new_info = info_traffic_msg
+    let info = info_traffic_msg
         .map
         .entry(*key)
         .and_modify(|info| {
@@ -374,7 +388,7 @@ pub fn modify_or_insert_in_map(
             syn_info: None,
         });
 
-    (new_info.traffic_direction, new_info.service)
+    (info.traffic_direction, info.service)
 }
 
 /// Returns the traffic direction observed (incoming or outgoing)
