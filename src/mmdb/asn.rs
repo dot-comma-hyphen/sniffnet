@@ -15,7 +15,7 @@ pub fn get_asn(address: &IpAddr, asn_db_reader: &MmdbReader) -> Asn {
 
 #[cfg(test)]
 mod tests {
-    use crate::mmdb::asn::{ASN_MMDB, get_asn};
+    use crate::mmdb::asn::{get_asn, ASN_MMDB};
     use crate::mmdb::types::mmdb_reader::MmdbReader;
     use std::net::IpAddr;
     use std::str::FromStr;

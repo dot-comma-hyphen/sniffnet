@@ -9,8 +9,8 @@ use std::hash::{Hash, Hasher};
 
 use iced::Color;
 use serde::{
-    Deserialize, Deserializer, Serializer,
     de::{Error as DeErrorTrait, Unexpected},
+    Deserialize, Deserializer, Serializer,
 };
 
 // #aabbcc is seven bytes long
@@ -109,7 +109,7 @@ where
 mod tests {
     use iced::Color;
     use serde::{Deserialize, Serialize};
-    use serde_test::{Token, assert_de_tokens_error, assert_tokens};
+    use serde_test::{assert_de_tokens_error, assert_tokens, Token};
 
     use super::{deserialize_color, serialize_color};
 

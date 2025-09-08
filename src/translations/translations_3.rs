@@ -404,6 +404,47 @@ pub fn database_from_file_translation(language: Language) -> &'static str {
     }
 }
 
+pub fn ip_blacklist_from_file_translation(language: Language) -> &'static str {
+    match language {
+        Language::EN => "Select IP blacklist file",
+        Language::ES => "Selecciona un archivo de lista negra de IP",
+        Language::IT => "Seleziona file di blacklist IP",
+        Language::FR => "Sélection d'un fichier de liste noire d'IP",
+        Language::DE => "IP-Blacklist-Datei auswählen",
+        Language::PL => "Wybierz plik z czarną listą IP",
+        Language::RU => "Выберите файл черного списка IP-адресов",
+        Language::RO => "Selectează fișierul cu lista neagră de IP-uri",
+        Language::JA => "IPブラックリストファイルを選択してください",
+        Language::UZ => "IP qora ro'yxati faylini tanlang",
+        Language::SV => "Välj IP-svartlistningsfil",
+        Language::VI => "Chọn tệp danh sách đen IP",
+        Language::ZH => "选择IP黑名单文件",
+        Language::ZH_TW => "選擇IP黑名單檔案",
+        Language::KO => "IP 블랙리스트 파일 선택",
+        Language::TR => "IP kara liste dosyasını seç",
+        Language::PT => "Selecione um arquivo de lista negra de IP",
+        Language::UK => "Виберіть файл чорного списку IP-адрес",
+        Language::ID => "Pilih berkas daftar hitam IP",
+        Language::NL => "Selecteer IP-blacklistbestand",
+        Language::EL => "Επιλογή αρχείου λίστας αποκλεισμού IP",
+        _ => "Select IP blacklist file",
+    }
+}
+
+pub fn ip_blacklist_translation(language: Language) -> &'static str {
+    match language {
+        Language::EN => "IP Blacklist",
+        _ => "IP Blacklist",
+    }
+}
+
+pub fn blacklist_file_translation(language: Language) -> &'static str {
+    match language {
+        Language::EN => "Blacklist file:",
+        _ => "Blacklist file:",
+    }
+}
+
 pub fn filter_by_host_translation(language: Language) -> &'static str {
     match language {
         Language::EN => "Filter by network host",

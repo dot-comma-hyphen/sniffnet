@@ -7,12 +7,12 @@ use iced::widget::button;
 use iced::widget::button::{Catalog, Status, Style};
 use iced::{Background, Border, Color, Shadow, Vector};
 
-use crate::StyleType;
 use crate::gui::styles::style_constants::{BORDER_BUTTON_RADIUS, BORDER_WIDTH};
 use crate::gui::styles::types::gradient_type::{
-    GradientType, get_gradient_buttons, get_gradient_hovered_buttons,
+    get_gradient_buttons, get_gradient_hovered_buttons, GradientType,
 };
 use crate::gui::styles::types::palette::mix_colors;
+use crate::StyleType;
 
 #[derive(Default)]
 pub enum ButtonType {
@@ -30,6 +30,7 @@ pub enum ButtonType {
     SortArrows,
     SortArrowActive,
     Thumbnail,
+    Blacklisted,
 }
 
 impl ButtonType {
@@ -51,6 +52,10 @@ impl ButtonType {
                 | ButtonType::NotStarred
                 | ButtonType::SortArrows
                 | ButtonType::SortArrowActive => Background::Color(Color::TRANSPARENT),
+                ButtonType::Blacklisted => Background::Color(Color {
+                    a: 0.2,
+                    ..ext.red_alert_color
+                }),
                 ButtonType::Gradient(GradientType::None) => Background::Color(colors.secondary),
                 ButtonType::Gradient(gradient_type) => Background::Gradient(get_gradient_buttons(
                     &colors,
@@ -139,6 +144,10 @@ impl ButtonType {
                 ButtonType::SortArrows | ButtonType::SortArrowActive | ButtonType::Thumbnail => {
                     Background::Color(Color::TRANSPARENT)
                 }
+                ButtonType::Blacklisted => Background::Color(Color {
+                    a: 0.3,
+                    ..ext.red_alert_color
+                }),
                 ButtonType::Neutral => Background::Color(Color {
                     a: ext.alpha_round_borders,
                     ..ext.buttons_color

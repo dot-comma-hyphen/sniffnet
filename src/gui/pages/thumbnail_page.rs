@@ -1,7 +1,7 @@
 use std::cmp::min;
 use std::net::IpAddr;
 
-use iced::widget::{Column, Container, Row, Rule, Space, Text, vertical_space};
+use iced::widget::{vertical_space, Column, Container, Row, Rule, Space, Text};
 use iced::{Alignment, Font, Length};
 
 use crate::chart::types::donut_chart::donut_chart;
@@ -190,7 +190,7 @@ fn clip_text(text: &str, max_chars: usize) -> String {
 #[cfg(test)]
 mod tests {
     use crate::gui::pages::thumbnail_page::{
-        MAX_CHARS_HOST, MAX_CHARS_SERVICE, clip_text, host_text,
+        clip_text, host_text, MAX_CHARS_HOST, MAX_CHARS_SERVICE,
     };
     use crate::networking::types::asn::Asn;
     use crate::networking::types::host::Host;

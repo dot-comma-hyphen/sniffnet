@@ -2,8 +2,8 @@
 
 use iced::widget::Text;
 
-use crate::StyleType;
 use crate::translations::types::language::Language;
+use crate::StyleType;
 
 // pub fn choose_adapters_translation<'a>(language: Language) -> Text<'a, StyleType> {
 //     Text::new(match language {

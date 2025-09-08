@@ -4,12 +4,12 @@ use iced::widget::scrollable::Direction;
 use iced::widget::text::LineHeight;
 use iced::widget::text_input::Side;
 use iced::widget::tooltip::Position;
-use iced::widget::{Button, Column, Container, Row, Scrollable, Text, TextInput};
 use iced::widget::{
-    ComboBox, Rule, Space, Toggler, Tooltip, button, combo_box, horizontal_space, text_input,
-    vertical_space,
+    button, combo_box, horizontal_space, text_input, vertical_space, ComboBox, Rule, Space,
+    Toggler, Tooltip,
 };
-use iced::{Alignment, Font, Length, Padding, Pixels, alignment};
+use iced::widget::{Button, Column, Container, Row, Scrollable, Text, TextInput};
+use iced::{alignment, Alignment, Font, Length, Padding, Pixels};
 
 use crate::gui::components::tab::get_pages_tabs;
 use crate::gui::components::types::my_modal::MyModal;
@@ -22,14 +22,13 @@ use crate::gui::styles::text::TextType;
 use crate::gui::styles::text_input::TextInputType;
 use crate::gui::types::message::Message;
 use crate::gui::types::settings::Settings;
-use crate::networking::types::address_port_pair::AddressPortPair;
 use crate::networking::types::data_info::DataInfo;
 use crate::networking::types::data_representation::DataRepr;
 use crate::networking::types::host_data_states::HostStates;
-use crate::networking::types::info_address_port_pair::InfoAddressPortPair;
 use crate::networking::types::traffic_direction::TrafficDirection;
 use crate::report::get_report_entries::get_searched_entries;
 use crate::report::types::report_col::ReportCol;
+use crate::report::types::report_entry::ReportEntry;
 use crate::report::types::search_parameters::{FilterInputType, SearchParameters};
 use crate::report::types::sort_type::SortType;
 use crate::translations::translations_2::{
@@ -124,18 +123,18 @@ fn report<'a>(sniffer: &Sniffer) -> Column<'a, Message, StyleType> {
     let start_entry_num = (sniffer.page_number.saturating_sub(1)) * 20 + 1;
     let end_entry_num = start_entry_num + search_results.len() - 1;
     for report_entry in search_results {
+        let button_type = if report_entry.is_blacklisted {
+            ButtonType::Blacklisted
+        } else {
+            ButtonType::Neutral
+        };
         scroll_report = scroll_report.push(
-            button(row_report_entry(
-                &report_entry.0,
-                &report_entry.1,
-                data_repr,
-                font,
-            ))
-            .padding(2)
-            .on_press(Message::ShowModal(MyModal::ConnectionDetails(
-                report_entry.0,
-            )))
-            .class(ButtonType::Neutral),
+            button(row_report_entry(&report_entry, data_repr, font))
+                .padding(2)
+                .on_press(Message::ShowModal(MyModal::ConnectionDetails(
+                    report_entry.key,
+                )))
+                .class(button_type),
         );
     }
     if results_number > 0 {
@@ -286,19 +285,33 @@ fn sort_arrows<'a>(active_sort_type: SortType) -> Container<'a, Message, StyleTy
     .height(Length::Fill)
 }
 
-fn row_report_entry<'a>(
-    key: &AddressPortPair,
-    val: &InfoAddressPortPair,
+fn row_report_entry(
+    report_entry: &ReportEntry,
     data_repr: DataRepr,
     font: Font,
-) -> Row<'a, Message, StyleType> {
+) -> Row<'static, Message, StyleType> {
+    let val = &report_entry.val;
+    let key = &report_entry.key;
+
     let text_type = if val.traffic_direction == TrafficDirection::Outgoing {
         TextType::Outgoing
     } else {
         TextType::Incoming
     };
 
-    let mut ret_val = Row::new().align_y(Alignment::Center);
+    let mut ret_val = Row::new().align_y(Alignment::Center).spacing(5);
+
+    if report_entry.is_blacklisted {
+        ret_val = ret_val.push(
+            Icon::Warning
+                .to_text()
+                .class(TextType::Danger)
+                .size(20)
+                .width(25.0),
+        );
+    } else {
+        ret_val = ret_val.push(Space::with_width(25.0));
+    }
 
     for report_col in ReportCol::ALL {
         let max_chars = report_col.get_max_chars(None);

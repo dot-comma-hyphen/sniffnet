@@ -2,8 +2,8 @@
 
 #![allow(clippy::module_name_repetitions)]
 
-use crate::StyleType;
 use crate::gui::types::message::Message;
+use crate::StyleType;
 use iced::widget::text::{Catalog, Style};
 use iced::widget::{Column, Text};
 use iced::{Color, Font};

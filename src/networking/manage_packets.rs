@@ -19,20 +19,24 @@ use crate::networking::types::service_query::ServiceQuery;
 use crate::networking::types::traffic_direction::TrafficDirection;
 use crate::networking::types::traffic_type::TrafficType;
 use crate::{IpVersion, Protocol};
+use std::collections::HashSet;
 use std::fmt::Write;
+use std::sync::{Arc, Mutex};
 
 include!(concat!(env!("OUT_DIR"), "/services.rs"));
 
 /// Calls methods to analyze link, network, and transport headers.
 /// Returns the relevant collected information.
-pub fn analyze_headers(
+pub fn process_packet(
     headers: LaxPacketHeaders,
     mac_addresses: &mut (Option<String>, Option<String>),
     exchanged_bytes: &mut u128,
     icmp_type: &mut IcmpType,
     arp_type: &mut ArpType,
     packet_filters_fields: &mut PacketFiltersFields,
-) -> Option<AddressPortPair> {
+    blacklist: &Arc<HashSet<IpAddr>>,
+    notified_ips: &Arc<Mutex<HashSet<IpAddr>>>,
+) -> (Option<AddressPortPair>, Option<IpAddr>) {
     analyze_link_header(
         headers.link,
         &mut mac_addresses.0,
@@ -50,7 +54,7 @@ pub fn analyze_headers(
         &mut packet_filters_fields.dest,
         arp_type,
     ) {
-        return None;
+        return (None, None);
     }
 
     if !is_arp
@@ -62,16 +66,34 @@ pub fn analyze_headers(
             icmp_type,
         )
     {
-        return None;
+        return (None, None);
     }
 
-    Some(AddressPortPair::new(
+    let key = AddressPortPair::new(
         packet_filters_fields.source,
         packet_filters_fields.sport,
         packet_filters_fields.dest,
         packet_filters_fields.dport,
         packet_filters_fields.protocol,
-    ))
+    );
+
+    let mut blacklisted_ip = None;
+    if blacklist.contains(&key.address1) {
+        let mut notified = notified_ips.lock().unwrap();
+        if !notified.contains(&key.address1) {
+            notified.insert(key.address1);
+            blacklisted_ip = Some(key.address1);
+        }
+    }
+    if blacklisted_ip.is_none() && blacklist.contains(&key.address2) {
+        let mut notified = notified_ips.lock().unwrap();
+        if !notified.contains(&key.address2) {
+            notified.insert(key.address2);
+            blacklisted_ip = Some(key.address2);
+        }
+    }
+
+    (Some(key), blacklisted_ip)
 }
 
 /// This function analyzes the data link layer header passed as parameter and updates variables
@@ -529,8 +551,6 @@ mod tests {
     use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
     use std::str::FromStr;
 
-    use crate::Protocol;
-    use crate::Service;
     use crate::networking::manage_packets::{
         get_service, get_traffic_direction, get_traffic_type, is_local_connection,
         mac_from_dec_to_hex,
@@ -539,6 +559,8 @@ mod tests {
     use crate::networking::types::service_query::ServiceQuery;
     use crate::networking::types::traffic_direction::TrafficDirection;
     use crate::networking::types::traffic_type::TrafficType;
+    use crate::Protocol;
+    use crate::Service;
 
     include!(concat!(env!("OUT_DIR"), "/services.rs"));
 
@@ -1134,11 +1156,9 @@ mod tests {
     fn test_get_service_simple_only_one_valid() {
         let unknown_port = Some(65000);
         for p in [Protocol::TCP, Protocol::UDP] {
-            assert!(
-                SERVICES
-                    .get(&ServiceQuery(unknown_port.unwrap(), p))
-                    .is_none()
-            );
+            assert!(SERVICES
+                .get(&ServiceQuery(unknown_port.unwrap(), p))
+                .is_none());
             for d in [TrafficDirection::Incoming, TrafficDirection::Outgoing] {
                 let key = AddressPortPair::new(
                     IpAddr::V4(Ipv4Addr::UNSPECIFIED),
@@ -1538,16 +1558,12 @@ mod tests {
         let unknown_port_1 = Some(39332);
         let unknown_port_2 = Some(23679);
         for p in [Protocol::TCP, Protocol::UDP] {
-            assert!(
-                SERVICES
-                    .get(&ServiceQuery(unknown_port_1.unwrap(), p))
-                    .is_none()
-            );
-            assert!(
-                SERVICES
-                    .get(&ServiceQuery(unknown_port_2.unwrap(), p))
-                    .is_none()
-            );
+            assert!(SERVICES
+                .get(&ServiceQuery(unknown_port_1.unwrap(), p))
+                .is_none());
+            assert!(SERVICES
+                .get(&ServiceQuery(unknown_port_2.unwrap(), p))
+                .is_none());
             for d in [TrafficDirection::Incoming, TrafficDirection::Outgoing] {
                 for (p1, p2) in [
                     (unknown_port_1, unknown_port_2),

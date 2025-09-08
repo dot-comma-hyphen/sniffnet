@@ -18,7 +18,7 @@ use crate::networking::types::host::Host;
 use crate::networking::types::service::Service;
 use crate::networking::types::traffic_type::TrafficType;
 use crate::notifications::types::logged_notification::{
-    DataThresholdExceeded, FavoriteTransmitted, LoggedNotification,
+    Blacklisted, DataThresholdExceeded, FavoriteTransmitted, LoggedNotification,
 };
 use crate::report::types::sort_type::SortType;
 use crate::translations::translations::{
@@ -28,12 +28,12 @@ use crate::translations::translations::{
 };
 use crate::utils::types::icon::Icon;
 use crate::{Language, RunningPage, Sniffer, StyleType};
-use iced::Length::FillPortion;
 use iced::widget::scrollable::Direction;
 use iced::widget::text::LineHeight;
 use iced::widget::tooltip::Position;
-use iced::widget::{Column, Container, Row, Rule, Scrollable, Text, Tooltip, horizontal_space};
-use iced::widget::{Space, button, vertical_space};
+use iced::widget::{button, vertical_space, Space};
+use iced::widget::{horizontal_space, Column, Container, Row, Rule, Scrollable, Text, Tooltip};
+use iced::Length::FillPortion;
 use iced::{Alignment, Font, Length, Padding};
 use std::cmp::max;
 
@@ -297,7 +297,7 @@ fn logged_notifications<'a>(sniffer: &Sniffer) -> Column<'a, Message, StyleType>
         .logged_notifications
         .0
         .iter()
-        .map(LoggedNotification::data_info)
+        .map(|l| l.data_info())
         .max_by(|d1, d2| d1.compare(d2, SortType::Ascending, data_repr))
         .unwrap_or_default();
 
@@ -320,9 +320,56 @@ fn logged_notifications<'a>(sniffer: &Sniffer) -> Column<'a, Message, StyleType>
                     font,
                 )
             }
+            LoggedNotification::Blacklisted(blacklisted) => {
+                blacklist_notification_log(blacklisted, language, font)
+            }
         });
     }
     ret_val
+}
+
+fn blacklist_notification_log<'a>(
+    logged_notification: &Blacklisted,
+    _language: Language,
+    font: Font,
+) -> Container<'a, Message, StyleType> {
+    let content = Row::new()
+        .spacing(30)
+        .align_y(Alignment::Center)
+        .push(
+            Icon::Warning
+                .to_text()
+                .size(80)
+                .line_height(LineHeight::Relative(1.0))
+                .class(TextType::Danger),
+        )
+        .push(
+            Column::new()
+                .width(250)
+                .spacing(7)
+                .push(
+                    Row::new()
+                        .spacing(8)
+                        .push(Icon::Clock.to_text())
+                        .push(Text::new(logged_notification.timestamp.clone()).font(font)),
+                )
+                .push(
+                    Text::new("Blacklisted connection".to_string())
+                        .class(TextType::Title)
+                        .font(font),
+                )
+                .push(
+                    Text::new(logged_notification.ip.to_string())
+                        .class(TextType::Subtitle)
+                        .size(FONT_SIZE_FOOTER)
+                        .font(font),
+                ),
+        );
+
+    Container::new(content)
+        .width(Length::Fill)
+        .padding(15)
+        .class(ContainerType::BorderedRound)
 }
 
 fn threshold_bar<'a>(

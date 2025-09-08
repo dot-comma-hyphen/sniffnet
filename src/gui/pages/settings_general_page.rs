@@ -1,7 +1,7 @@
 use iced::widget::text::LineHeight;
 use iced::widget::tooltip::Position;
 use iced::widget::{
-    Column, Container, PickList, Row, Rule, Slider, Space, Text, Tooltip, button, vertical_space,
+    button, vertical_space, Column, Container, PickList, Row, Rule, Slider, Space, Text, Tooltip,
 };
 use iced::{Alignment, Font, Length, Padding};
 
@@ -19,7 +19,8 @@ use crate::mmdb::types::mmdb_reader::{MmdbReader, MmdbReaders};
 use crate::translations::translations::language_translation;
 use crate::translations::translations_2::country_translation;
 use crate::translations::translations_3::{
-    mmdb_files_translation, params_not_editable_translation, zoom_translation,
+    blacklist_file_translation, ip_blacklist_translation, mmdb_files_translation,
+    params_not_editable_translation, zoom_translation,
 };
 use crate::translations::translations_4::share_feedback_translation;
 use crate::utils::formatted_strings::get_path_termination_string;
@@ -93,7 +94,15 @@ fn column_all_general_setting(sniffer: &Sniffer, font: Font) -> Column<'_, Messa
         &sniffer.mmdb_readers,
     ));
 
-    column
+    column = column.push(Rule::horizontal(25));
+
+    column.push(blacklist_settings(
+        is_editable,
+        language,
+        font,
+        &sniffer.conf.settings.blacklist_path,
+        sniffer.blacklist.len(),
+    ))
 }
 
 fn row_language_scale_factor<'a>(
@@ -344,4 +353,63 @@ fn button_clear_mmdb<'a>(
     }
 
     Tooltip::new(button, "", Position::Right)
+}
+
+fn blacklist_settings(
+    is_editable: bool,
+    language: Language,
+    font: Font,
+    blacklist_path: &str,
+    blacklist_len: usize,
+) -> Column<'static, Message, StyleType> {
+    Column::new()
+        .spacing(5)
+        .align_x(Alignment::Center)
+        .push(
+            Text::new(ip_blacklist_translation(language))
+                .font(font)
+                .class(TextType::Subtitle)
+                .size(FONT_SIZE_SUBTITLE),
+        )
+        .push(blacklist_selection_row(
+            is_editable,
+            font,
+            Message::CustomBlacklist,
+            blacklist_path,
+            blacklist_len,
+            language,
+        ))
+}
+
+fn blacklist_selection_row(
+    is_editable: bool,
+    font: Font,
+    message: fn(String) -> Message,
+    custom_path: &str,
+    blacklist_len: usize,
+    language: Language,
+) -> Row<'static, Message, StyleType> {
+    let path_termination = get_path_termination_string(custom_path, 25);
+
+    let mut path_str = path_termination.clone();
+    if !path_termination.is_empty() {
+        path_str.push_str(&format!(" ({blacklist_len} IPs)"));
+    }
+
+    Row::new()
+        .align_y(Alignment::Center)
+        .push(Text::new(blacklist_file_translation(language)).font(font))
+        .push(Text::new(path_str).font(font))
+        .push(if custom_path.is_empty() {
+            button_open_file(
+                custom_path.to_owned(),
+                FileInfo::Blacklist,
+                language,
+                font,
+                is_editable,
+                message,
+            )
+        } else {
+            button_clear_mmdb(message, font, is_editable)
+        })
 }

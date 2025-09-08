@@ -1,17 +1,20 @@
-use crate::InfoTraffic;
 use crate::networking::types::capture_context::CaptureSource;
 use crate::networking::types::data_info::DataInfo;
+use crate::InfoTraffic;
+use std::net::IpAddr;
+
 use crate::networking::types::data_info_host::DataInfoHost;
 use crate::networking::types::data_representation::DataRepr;
 use crate::networking::types::host::Host;
 use crate::networking::types::service::Service;
 use crate::notifications::types::logged_notification::{
-    DataThresholdExceeded, FavoriteTransmitted, LoggedNotification,
+    Blacklisted, DataThresholdExceeded, FavoriteTransmitted, LoggedNotification,
 };
 use crate::notifications::types::notifications::Notifications;
-use crate::notifications::types::sound::{Sound, play};
+use crate::notifications::types::sound::{play, Sound};
 use crate::report::types::sort_type::SortType;
 use crate::utils::formatted_strings::get_formatted_timestamp;
+use crate::utils::types::timestamp::Timestamp;
 use std::cmp::min;
 use std::collections::{HashSet, VecDeque};
 
@@ -96,6 +99,30 @@ pub fn notify_and_log(
     }
 
     logged_notifications.1 - emitted_notifications_prev
+}
+
+pub fn notify_for_blacklist(
+    logged_notifications: &mut (VecDeque<LoggedNotification>, usize),
+    notifications: Notifications,
+    ip: IpAddr,
+) {
+    let sound_to_play = Sound::Gulp;
+    let now = chrono::Local::now();
+    let timestamp = Timestamp::new(now.timestamp(), i64::from(now.timestamp_subsec_micros()));
+    //log this notification
+    logged_notifications.1 += 1;
+    if logged_notifications.0.len() >= 30 {
+        logged_notifications.0.pop_back();
+    }
+    logged_notifications
+        .0
+        .push_front(LoggedNotification::Blacklisted(Blacklisted {
+            id: logged_notifications.1,
+            ip,
+            timestamp: get_formatted_timestamp(timestamp),
+        }));
+
+    play(sound_to_play, notifications.volume);
 }
 
 fn hosts_list(info_traffic_msg: &InfoTraffic, data_repr: DataRepr) -> Vec<(Host, DataInfoHost)> {

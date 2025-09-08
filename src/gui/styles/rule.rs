@@ -3,8 +3,8 @@
 #![allow(clippy::module_name_repetitions)]
 
 use crate::StyleType;
-use iced::Color;
 use iced::widget::rule::{Catalog, FillMode, Style};
+use iced::Color;
 
 #[derive(Default)]
 pub enum RuleType {

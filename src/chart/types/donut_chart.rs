@@ -4,8 +4,8 @@ use crate::networking::types::data_representation::DataRepr;
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::canvas::path::Arc;
 use iced::widget::canvas::{Frame, Text};
-use iced::widget::{Canvas, canvas};
-use iced::{Font, Length, Radians, Renderer, mouse};
+use iced::widget::{canvas, Canvas};
+use iced::{mouse, Font, Length, Radians, Renderer};
 use std::f32::consts;
 
 pub struct DonutChart {

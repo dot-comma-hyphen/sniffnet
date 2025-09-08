@@ -1,24 +1,22 @@
 use std::cmp::min;
 
 use crate::networking::manage_packets::get_address_to_lookup;
-use crate::networking::types::address_port_pair::AddressPortPair;
 use crate::networking::types::data_info::DataInfo;
 use crate::networking::types::data_info_host::DataInfoHost;
 use crate::networking::types::data_representation::DataRepr;
 use crate::networking::types::host::Host;
-use crate::networking::types::info_address_port_pair::InfoAddressPortPair;
+use crate::report::types::report_entry::ReportEntry;
 use crate::report::types::sort_type::SortType;
 use crate::{InfoTraffic, Service, Sniffer};
+use std::net::IpAddr;
 
 /// Return the elements that satisfy the search constraints and belong to the given page,
 /// and the total number of elements which satisfy the search constraints,
 /// with their packets, in-bytes, and out-bytes count
-pub fn get_searched_entries(
-    sniffer: &Sniffer,
-) -> (Vec<(AddressPortPair, InfoAddressPortPair)>, usize, DataInfo) {
+pub fn get_searched_entries(sniffer: &Sniffer) -> (Vec<ReportEntry>, usize, DataInfo) {
     let mut agglomerate = DataInfo::default();
     let info_traffic = &sniffer.info_traffic;
-    let mut all_results: Vec<(&AddressPortPair, &InfoAddressPortPair)> = info_traffic
+    let mut all_results: Vec<ReportEntry> = info_traffic
         .map
         .iter()
         .filter(|(key, value)| {
@@ -37,19 +35,30 @@ pub fn get_searched_entries(
                 .search
                 .match_entry(key, value, r_dns_host, is_favorite)
         })
-        .map(|(key, val)| {
+        .map(|(address_port_pair, val)| {
             agglomerate.add_packets(
                 val.transmitted_packets,
                 val.transmitted_bytes,
                 val.traffic_direction,
             );
-            (key, val)
+            let mut is_blacklisted = false;
+            if sniffer.blacklist.contains(&address_port_pair.address1) {
+                is_blacklisted = true;
+            }
+            if !is_blacklisted && sniffer.blacklist.contains(&address_port_pair.address2) {
+                is_blacklisted = true;
+            }
+            ReportEntry {
+                key: address_port_pair.clone(),
+                val: val.clone(),
+                is_blacklisted,
+            }
         })
         .collect();
 
-    all_results.sort_by(|&(_, a), &(_, b)| {
-        a.compare(
-            b,
+    all_results.sort_by(|a, b| {
+        a.val.compare(
+            &b.val,
             sniffer.conf.report_sort_type,
             sniffer.traffic_chart.data_repr,
         )
@@ -61,9 +70,7 @@ pub fn get_searched_entries(
         all_results
             .get((sniffer.page_number.saturating_sub(1)) * 20..upper_bound)
             .unwrap_or_default()
-            .iter()
-            .map(|&(key, val)| (key.to_owned(), val.to_owned()))
-            .collect(),
+            .to_vec(),
         all_results.len(),
         agglomerate,
     )

@@ -93,7 +93,7 @@ where
 #[cfg(test)]
 mod tests {
     use iced::Color;
-    use serde_test::{Token, assert_tokens};
+    use serde_test::{assert_tokens, Token};
 
     use crate::gui::styles::style_constants::{
         RED_ALERT_COLOR_DAILY, SARASA_MONO, SARASA_MONO_BOLD,

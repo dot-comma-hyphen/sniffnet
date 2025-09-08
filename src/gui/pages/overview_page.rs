@@ -39,15 +39,15 @@ use crate::translations::translations_3::{service_translation, unsupported_link_
 use crate::translations::translations_4::reading_from_pcap_translation;
 use crate::utils::types::icon::Icon;
 use crate::{Language, RunningPage, StyleType};
-use iced::Length::{Fill, FillPortion};
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::scrollable::Direction;
 use iced::widget::text::LineHeight;
 use iced::widget::tooltip::Position;
 use iced::widget::{
-    Button, Column, Container, Row, Rule, Scrollable, Space, Text, Tooltip, button,
-    horizontal_space, vertical_space,
+    button, horizontal_space, vertical_space, Button, Column, Container, Row, Rule, Scrollable,
+    Space, Text, Tooltip,
 };
+use iced::Length::{Fill, FillPortion};
 use iced::{Alignment, Element, Font, Length, Padding};
 use std::fmt::Write;
 
@@ -826,7 +826,7 @@ fn sort_arrows<'a>(
 
 #[cfg(test)]
 mod tests {
-    use crate::gui::pages::overview_page::{MIN_BARS_LENGTH, get_bars_length};
+    use crate::gui::pages::overview_page::{get_bars_length, MIN_BARS_LENGTH};
     use crate::networking::types::data_info::DataInfo;
     use crate::networking::types::data_representation::DataRepr;
 

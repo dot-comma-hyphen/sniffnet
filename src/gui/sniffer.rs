@@ -2,19 +2,19 @@
 
 use crate::gui::pages::overview_page::waiting_page;
 use async_channel::Receiver;
-use iced::Event::{Keyboard, Window};
 use iced::keyboard::key::Named;
 use iced::keyboard::{Event, Key, Modifiers};
 use iced::mouse::Event::ButtonPressed;
 use iced::widget::Column;
 use iced::window::{Id, Level};
-use iced::{Element, Point, Size, Subscription, Task, window};
+use iced::Event::{Keyboard, Window};
+use iced::{window, Element, Point, Size, Subscription, Task};
 use pcap::Device;
 use rfd::FileHandle;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::net::IpAddr;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
@@ -45,8 +45,8 @@ use crate::gui::types::timing_events::TimingEvents;
 use crate::mmdb::asn::ASN_MMDB;
 use crate::mmdb::country::COUNTRY_MMDB;
 use crate::mmdb::types::mmdb_reader::{MmdbReader, MmdbReaders};
-use crate::networking::parse_packets::BackendTrafficMessage;
 use crate::networking::parse_packets::parse_packets;
+use crate::networking::parse_packets::BackendTrafficMessage;
 use crate::networking::types::capture_context::{
     CaptureContext, CaptureSource, CaptureSourcePicklist, MyPcapImport,
 };
@@ -55,10 +55,10 @@ use crate::networking::types::host::{Host, HostMessage};
 use crate::networking::types::host_data_states::HostDataStates;
 use crate::networking::types::info_traffic::InfoTraffic;
 use crate::networking::types::my_device::MyDevice;
-use crate::notifications::notify_and_log::notify_and_log;
+use crate::notifications::notify_and_log::{notify_and_log, notify_for_blacklist};
 use crate::notifications::types::logged_notification::LoggedNotification;
 use crate::notifications::types::notifications::{DataNotification, Notification};
-use crate::notifications::types::sound::{Sound, play};
+use crate::notifications::types::sound::{play, Sound};
 use crate::report::get_report_entries::get_searched_entries;
 use crate::report::types::search_parameters::SearchParameters;
 use crate::translations::types::language::Language;
@@ -66,7 +66,8 @@ use crate::utils::check_updates::set_newer_release_status;
 use crate::utils::error_logger::{ErrorLogger, Location};
 use crate::utils::types::file_info::FileInfo;
 use crate::utils::types::web_page::WebPage;
-use crate::{StyleType, TrafficChart, location};
+use crate::{location, StyleType, TrafficChart};
+use std::fs;
 
 pub const FONT_FAMILY_NAME: &str = "Sarasa Mono SC for Sniffnet";
 pub const ICON_FONT_FAMILY_NAME: &str = "Icons for Sniffnet";
@@ -121,6 +122,10 @@ pub struct Sniffer {
     pub id: Option<Id>,
     /// Host data for filter dropdowns (comboboxes)
     pub host_data_states: HostDataStates,
+    /// Collection of blacklisted hosts
+    pub blacklist: HashSet<IpAddr>,
+    /// Collection of blacklisted hosts that have been notified
+    pub notified_blacklist_ips: HashSet<IpAddr>,
 }
 
 impl Sniffer {
@@ -130,9 +135,11 @@ impl Sniffer {
             language,
             mmdb_country,
             mmdb_asn,
+            blacklist_path,
             ..
         } = conf.settings.clone();
         let capture_source = CaptureSource::from_conf(&conf);
+        let blacklist = Sniffer::load_blacklist(&blacklist_path);
         Self {
             conf,
             current_capture_rx: (0, None),
@@ -160,6 +167,8 @@ impl Sniffer {
             thumbnail: false,
             id: None,
             host_data_states: HostDataStates::default(),
+            blacklist,
+            notified_blacklist_ips: HashSet::new(),
         }
     }
 
@@ -416,6 +425,10 @@ impl Sniffer {
                 self.conf.settings.mmdb_asn.clone_from(&db);
                 self.mmdb_readers.asn = Arc::new(MmdbReader::from(&db, ASN_MMDB));
             }
+            Message::CustomBlacklist(path) => {
+                self.conf.settings.blacklist_path.clone_from(&path);
+                self.blacklist = Sniffer::load_blacklist(&path);
+            }
             Message::QuitWrapper => return self.quit_wrapper(),
             Message::Quit => {
                 let _ = self.conf.clone().store();
@@ -540,6 +553,13 @@ impl Sniffer {
                 {
                     n.expand(expand);
                 }
+            }
+            Message::BlacklistedConnection(ip) => {
+                notify_for_blacklist(
+                    &mut self.logged_notifications,
+                    self.conf.settings.notifications,
+                    ip,
+                );
             }
         }
         Task::none()
@@ -736,6 +756,8 @@ impl Sniffer {
             self.traffic_chart
                 .change_capture_source(matches!(capture_source, CaptureSource::Device(_)));
             let (tx, rx) = async_channel::unbounded();
+            let blacklist = Arc::new(self.blacklist.clone());
+            let notified_ips = Arc::new(Mutex::new(HashSet::new()));
             let _ = thread::Builder::new()
                 .name("thread_parse_packets".to_string())
                 .spawn(move || {
@@ -745,6 +767,8 @@ impl Sniffer {
                         &mmdb_readers,
                         capture_context,
                         &tx,
+                        blacklist,
+                        notified_ips,
                     );
                 })
                 .log_err(location!());
@@ -757,6 +781,9 @@ impl Sniffer {
                     Message::PendingHosts(cap_id, host_msg)
                 }
                 BackendTrafficMessage::OfflineGap(cap_id, gap) => Message::OfflineGap(cap_id, gap),
+                BackendTrafficMessage::BlacklistedConnection(ip) => {
+                    Message::BlacklistedConnection(ip)
+                }
             });
         }
         Task::none()
@@ -1061,6 +1088,25 @@ impl Sniffer {
             && matches!(self.capture_source, CaptureSource::Device(_))
             || self.conf.capture_source_picklist == CaptureSourcePicklist::File
                 && matches!(self.capture_source, CaptureSource::File(_))
+    }
+
+    fn load_blacklist(path: &str) -> HashSet<IpAddr> {
+        if path.is_empty() {
+            return HashSet::new();
+        }
+        let mut blacklist = HashSet::new();
+        if let Ok(file) = fs::read_to_string(path) {
+            for line in file.lines() {
+                let trimmed_line = line.trim();
+                if trimmed_line.starts_with('#') || trimmed_line.is_empty() {
+                    continue;
+                }
+                if let Ok(addr) = trimmed_line.parse::<IpAddr>() {
+                    blacklist.insert(addr);
+                }
+            }
+        }
+        blacklist
     }
 }
 

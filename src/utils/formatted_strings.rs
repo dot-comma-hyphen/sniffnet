@@ -122,8 +122,8 @@ pub fn get_logs_file_path() -> Option<String> {
 }
 
 #[cfg(all(windows, not(debug_assertions)))]
-pub fn redirect_stdout_stderr_to_file()
--> Option<(gag::Redirect<std::fs::File>, gag::Redirect<std::fs::File>)> {
+pub fn redirect_stdout_stderr_to_file(
+) -> Option<(gag::Redirect<std::fs::File>, gag::Redirect<std::fs::File>)> {
     if let Ok(logs_file) = std::fs::OpenOptions::new()
         .create(true)
         .append(true)

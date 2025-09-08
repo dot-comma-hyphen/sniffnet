@@ -16,7 +16,7 @@ pub fn get_country(address: &IpAddr, country_db_reader: &MmdbReader) -> Country 
 #[cfg(test)]
 mod tests {
     use crate::countries::types::country::Country;
-    use crate::mmdb::country::{COUNTRY_MMDB, get_country};
+    use crate::mmdb::country::{get_country, COUNTRY_MMDB};
     use crate::mmdb::types::mmdb_reader::MmdbReader;
     use std::net::IpAddr;
     use std::str::FromStr;

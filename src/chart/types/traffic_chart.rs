@@ -3,7 +3,7 @@
 use std::cmp::min;
 use std::ops::Range;
 
-use iced::widget::{Column, Row, horizontal_space};
+use iced::widget::{horizontal_space, Column, Row};
 use iced::{Element, Length, Padding};
 use plotters::prelude::*;
 use plotters::series::LineSeries;
@@ -21,7 +21,7 @@ use crate::translations::translations::{incoming_translation, outgoing_translati
 use crate::utils::error_logger::{ErrorLogger, Location};
 use crate::utils::formatted_strings::{get_formatted_num_seconds, get_formatted_timestamp};
 use crate::utils::types::timestamp::Timestamp;
-use crate::{Language, StyleType, location};
+use crate::{location, Language, StyleType};
 
 /// Struct defining the chart to be displayed in gui run page
 pub struct TrafficChart {

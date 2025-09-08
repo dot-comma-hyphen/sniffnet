@@ -101,6 +101,8 @@ pub enum Message {
     CustomCountryDb(String),
     /// The ASN MMDB custom path has been updated
     CustomAsnDb(String),
+    /// The IP blacklist custom path has been updated
+    CustomBlacklist(String),
     /// Wrapper around the Quit message
     QuitWrapper,
     /// Save the configurations of the app and quit
@@ -135,4 +137,6 @@ pub enum Message {
     Periodic,
     /// Expand or collapse the given logged notification
     ExpandNotification(usize, bool),
+    /// A blacklisted connection has been detected
+    BlacklistedConnection(IpAddr),
 }

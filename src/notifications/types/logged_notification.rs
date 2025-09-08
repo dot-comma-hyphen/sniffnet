@@ -1,15 +1,20 @@
 use crate::networking::types::data_info::DataInfo;
+use std::net::IpAddr;
+
 use crate::networking::types::data_info_host::DataInfoHost;
 use crate::networking::types::data_representation::DataRepr;
 use crate::networking::types::host::Host;
 use crate::networking::types::service::Service;
 
 /// Enum representing the possible notification events.
+#[derive(Clone)]
 pub enum LoggedNotification {
     /// Data threshold exceeded
     DataThresholdExceeded(DataThresholdExceeded),
     /// Favorite connection exchanged data
     FavoriteTransmitted(FavoriteTransmitted),
+    /// Blacklisted connection exchanged data
+    Blacklisted(Blacklisted),
 }
 
 impl LoggedNotification {
@@ -17,6 +22,7 @@ impl LoggedNotification {
         match self {
             LoggedNotification::DataThresholdExceeded(d) => d.id,
             LoggedNotification::FavoriteTransmitted(f) => f.id,
+            LoggedNotification::Blacklisted(b) => b.id,
         }
     }
 
@@ -24,6 +30,7 @@ impl LoggedNotification {
         match self {
             LoggedNotification::DataThresholdExceeded(d) => d.data_info,
             LoggedNotification::FavoriteTransmitted(f) => f.data_info_host.data_info,
+            LoggedNotification::Blacklisted(_) => DataInfo::default(),
         }
     }
 
@@ -31,6 +38,7 @@ impl LoggedNotification {
         match self {
             LoggedNotification::DataThresholdExceeded(d) => d.is_expanded = expand,
             LoggedNotification::FavoriteTransmitted(_) => {}
+            LoggedNotification::Blacklisted(_) => {}
         }
     }
 }
@@ -52,5 +60,12 @@ pub struct FavoriteTransmitted {
     pub(crate) id: usize,
     pub(crate) host: Host,
     pub(crate) data_info_host: DataInfoHost,
+    pub(crate) timestamp: String,
+}
+
+#[derive(Clone)]
+pub struct Blacklisted {
+    pub(crate) id: usize,
+    pub(crate) ip: IpAddr,
     pub(crate) timestamp: String,
 }

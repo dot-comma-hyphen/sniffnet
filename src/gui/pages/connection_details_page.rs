@@ -39,8 +39,8 @@ use crate::{Language, Protocol, Sniffer, StyleType};
 use iced::alignment::Vertical;
 use iced::widget::scrollable::Direction;
 use iced::widget::tooltip::Position;
+use iced::widget::{button, horizontal_space, vertical_space, Rule, Scrollable};
 use iced::widget::{Column, Container, Row, Text, Tooltip};
-use iced::widget::{Rule, Scrollable, button, horizontal_space, vertical_space};
 use iced::{Alignment, Font, Length, Padding};
 
 pub fn connection_details_page(

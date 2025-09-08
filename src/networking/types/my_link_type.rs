@@ -1,7 +1,7 @@
 use pcap::Linktype;
 
-use crate::Language;
 use crate::translations::translations_3::link_type_translation;
+use crate::Language;
 
 /// Currently supported link types
 #[derive(Copy, Clone, Default)]

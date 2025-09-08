@@ -2,8 +2,8 @@
 
 use iced::widget::text::LineHeight;
 use iced::widget::tooltip::Position;
-use iced::widget::{Column, Container, Row, Text, Tooltip, button, rich_text, span};
-use iced::widget::{Space, horizontal_space};
+use iced::widget::{button, rich_text, span, Column, Container, Row, Text, Tooltip};
+use iced::widget::{horizontal_space, Space};
 use iced::{Alignment, Font, Length, Padding};
 
 use crate::gui::components::button::row_open_link_tooltip;
@@ -75,11 +75,9 @@ pub fn footer<'a>(
                         )
                         .push(Text::new("by ").size(FONT_SIZE_FOOTER).font(font_footer))
                         .push(
-                            rich_text![
-                                span("Giuliano Bellini")
-                                    .underline(true)
-                                    .link(Message::OpenWebPage(WebPage::MyGitHub)),
-                            ]
+                            rich_text![span("Giuliano Bellini")
+                                .underline(true)
+                                .link(Message::OpenWebPage(WebPage::MyGitHub)),]
                             .size(FONT_SIZE_FOOTER)
                             .font(font_footer),
                         ),

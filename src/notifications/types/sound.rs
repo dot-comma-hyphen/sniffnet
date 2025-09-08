@@ -1,8 +1,8 @@
 use std::fmt;
 use std::thread;
 
-use iced::Font;
 use iced::widget::Text;
+use iced::Font;
 use rodio::{Decoder, OutputStreamBuilder, Sink};
 use serde::{Deserialize, Serialize};
 
@@ -10,7 +10,7 @@ use crate::gui::styles::style_constants::FONT_SIZE_FOOTER;
 use crate::notifications::types::sound::Sound::{Gulp, Pop, Swhoosh};
 use crate::utils::error_logger::{ErrorLogger, Location};
 use crate::utils::types::icon::Icon;
-use crate::{StyleType, location};
+use crate::{location, StyleType};
 
 /// Enum representing the possible notification sounds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

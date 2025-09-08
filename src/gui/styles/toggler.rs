@@ -2,11 +2,11 @@
 
 #![allow(clippy::module_name_repetitions)]
 
-use iced::Color;
 use iced::widget::toggler::{Catalog, Status, Style};
+use iced::Color;
 
-use crate::StyleType;
 use crate::gui::styles::style_constants::BORDER_WIDTH;
+use crate::StyleType;
 
 #[derive(Default)]
 pub enum TogglerType {

@@ -5,8 +5,8 @@ use crate::mmdb::asn::get_asn;
 use crate::mmdb::country::get_country;
 use crate::mmdb::types::mmdb_reader::MmdbReaders;
 use crate::networking::manage_packets::{
-    analyze_headers, get_address_to_lookup, get_traffic_type, is_local_connection,
-    modify_or_insert_in_map,
+    get_address_to_lookup, get_traffic_type, is_local_connection, modify_or_insert_in_map,
+    process_packet,
 };
 use crate::networking::types::address_port_pair::AddressPortPair;
 use crate::networking::types::arp_type::ArpType;
@@ -27,7 +27,7 @@ use async_channel::Sender;
 use dns_lookup::lookup_addr;
 use etherparse::{EtherType, LaxPacketHeaders};
 use pcap::{Address, Packet};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::net::IpAddr;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -40,6 +40,8 @@ pub fn parse_packets(
     mmdb_readers: &MmdbReaders,
     capture_context: CaptureContext,
     tx: &Sender<BackendTrafficMessage>,
+    blacklist: Arc<HashSet<IpAddr>>,
+    notified_ips: Arc<Mutex<HashSet<IpAddr>>>,
 ) {
     let my_link_type = capture_context.my_link_type();
     let (mut cap, mut savefile) = capture_context.consume();
@@ -120,14 +122,22 @@ pub fn parse_packets(
                     let mut arp_type = ArpType::default();
                     let mut packet_filters_fields = PacketFiltersFields::default();
 
-                    let key_option = analyze_headers(
+                    let (key_option, blacklisted_ip) = process_packet(
                         headers,
                         &mut mac_addresses,
                         &mut exchanged_bytes,
                         &mut icmp_type,
                         &mut arp_type,
                         &mut packet_filters_fields,
+                        &blacklist,
+                        &notified_ips,
                     );
+
+                    if let Some(blacklisted_ip) = blacklisted_ip {
+                        let _ = tx.send_blocking(BackendTrafficMessage::BlacklistedConnection(
+                            blacklisted_ip,
+                        ));
+                    }
 
                     let Some(key) = key_option else {
                         continue;
@@ -423,6 +433,7 @@ pub enum BackendTrafficMessage {
     TickRun(usize, InfoTraffic, Vec<HostMessage>, bool),
     PendingHosts(usize, Vec<HostMessage>),
     OfflineGap(usize, u32),
+    BlacklistedConnection(IpAddr),
 }
 
 fn maybe_send_tick_run_live(

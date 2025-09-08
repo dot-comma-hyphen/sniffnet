@@ -10,7 +10,7 @@ use crate::report::types::sort_type::SortType;
 #[cfg(not(test))]
 use crate::utils::error_logger::{ErrorLogger, Location};
 #[cfg(not(test))]
-use crate::{SNIFFNET_LOWERCASE, location};
+use crate::{location, SNIFFNET_LOWERCASE};
 #[cfg(not(test))]
 use confy::ConfyError;
 use serde::{Deserialize, Serialize};

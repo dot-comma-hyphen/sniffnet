@@ -29,13 +29,13 @@ use crate::utils::formatted_strings::get_path_termination_string;
 use crate::utils::types::file_info::FileInfo;
 use crate::utils::types::icon::Icon;
 use crate::{Language, StyleType};
-use iced::Length::FillPortion;
 use iced::widget::scrollable::Direction;
 use iced::widget::{
-    Button, Checkbox, Column, Container, PickList, Row, Scrollable, Space, Text, TextInput, button,
-    center, vertical_space,
+    button, center, vertical_space, Button, Checkbox, Column, Container, PickList, Row, Scrollable,
+    Space, Text, TextInput,
 };
-use iced::{Alignment, Font, Length, Padding, alignment};
+use iced::Length::FillPortion;
+use iced::{alignment, Alignment, Font, Length, Padding};
 
 /// Computes the body of gui initial page
 pub fn initial_page(sniffer: &Sniffer) -> Container<'_, Message, StyleType> {

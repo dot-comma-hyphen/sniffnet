@@ -1,5 +1,5 @@
-use crate::SNIFFNET_LOWERCASE;
 use crate::utils::formatted_strings::APP_VERSION;
+use crate::SNIFFNET_LOWERCASE;
 use serde::Deserialize;
 use std::time::Duration;
 

@@ -1,10 +1,10 @@
-use crate::SNIFFNET_LOWERCASE;
-use crate::gui::types::conf::{CONF, Conf};
+use crate::gui::types::conf::{Conf, CONF};
 use crate::gui::types::message::Message;
 use crate::networking::types::capture_context::CaptureSourcePicklist;
 use crate::utils::formatted_strings::APP_VERSION;
+use crate::SNIFFNET_LOWERCASE;
 use clap::Parser;
-use iced::{Task, window};
+use iced::{window, Task};
 
 #[derive(Parser, Debug)]
 #[command(

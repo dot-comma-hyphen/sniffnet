@@ -1,6 +1,6 @@
-use crate::TrafficChart;
 use crate::networking::types::data_representation::DataRepr;
 use crate::networking::types::info_traffic::InfoTraffic;
+use crate::TrafficChart;
 use splines::{Interpolation, Key, Spline};
 
 impl TrafficChart {
@@ -219,7 +219,7 @@ fn reduce_all_time_data(all_time: &mut Vec<(f32, f32)>) {
 mod tests {
     use splines::{Interpolation, Key, Spline};
 
-    use crate::chart::manage_chart_data::{ChartSeries, get_max, get_min};
+    use crate::chart::manage_chart_data::{get_max, get_min, ChartSeries};
     use crate::networking::types::data_info::DataInfo;
     use crate::networking::types::data_representation::DataRepr;
     use crate::utils::types::timestamp::Timestamp;

@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use crate::ByteMultiple;
 use crate::networking::types::data_representation::DataRepr;
 use crate::notifications::types::sound::Sound;
+use crate::ByteMultiple;
 
 /// Used to contain the notifications configuration set by the user
 #[derive(Clone, Serialize, Deserialize, Copy, PartialEq, Debug)]

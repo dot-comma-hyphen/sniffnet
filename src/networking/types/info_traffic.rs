@@ -1,4 +1,3 @@
-use crate::Service;
 use crate::networking::types::address_port_pair::AddressPortPair;
 use crate::networking::types::data_info::DataInfo;
 use crate::networking::types::data_info_host::DataInfoHost;
@@ -6,6 +5,7 @@ use crate::networking::types::data_representation::DataRepr;
 use crate::networking::types::host::Host;
 use crate::networking::types::info_address_port_pair::InfoAddressPortPair;
 use crate::utils::types::timestamp::Timestamp;
+use crate::Service;
 use std::collections::HashMap;
 
 /// Struct containing overall traffic statistics and data.

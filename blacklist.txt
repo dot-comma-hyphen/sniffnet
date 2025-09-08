@@ -1,0 +1,11 @@
+# This is a comment
+1.1.1.1
+2.2.2.2
+
+# IPv6
+2001:db8:85a3::8a2e:370:7334
+::1
+8.8.8.8
+1.2.3.4 # another comment
+invalid-ip
+1.1.1.1
