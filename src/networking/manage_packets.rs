@@ -284,21 +284,20 @@ pub fn modify_or_insert_in_map(
 ) -> (TrafficDirection, Service) {
     let timestamp = info_traffic_msg.last_packet_timestamp;
 
-    let (traffic_direction, service) =
-        if let Some(info) = info_traffic_msg.map.get(key) {
-            (info.traffic_direction, info.service)
-        } else {
-            let my_interface_addresses = cs.get_addresses();
-            let direction = get_traffic_direction(
-                &key.address1,
-                &key.address2,
-                key.port1,
-                key.port2,
-                my_interface_addresses,
-            );
-            let service = get_service(key, direction, my_interface_addresses);
-            (direction, service)
-        };
+    let (traffic_direction, service) = if let Some(info) = info_traffic_msg.map.get(key) {
+        (info.traffic_direction, info.service)
+    } else {
+        let my_interface_addresses = cs.get_addresses();
+        let direction = get_traffic_direction(
+            &key.address1,
+            &key.address2,
+            key.port1,
+            key.port2,
+            my_interface_addresses,
+        );
+        let service = get_service(key, direction, my_interface_addresses);
+        (direction, service)
+    };
 
     // manage latency
     if key.protocol == Protocol::TCP {

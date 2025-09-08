@@ -140,12 +140,7 @@ mod tests {
             Ordering::Less
         );
         assert_eq!(
-            pair1.compare(
-                &pair2,
-                SortBy::Bytes,
-                SortType::Descending,
-                DataRepr::Bytes
-            ),
+            pair1.compare(&pair2, SortBy::Bytes, SortType::Descending, DataRepr::Bytes),
             Ordering::Greater
         );
         assert_eq!(
@@ -202,12 +197,7 @@ mod tests {
             Ordering::Greater
         );
         assert_eq!(
-            pair1.compare(
-                &pair2,
-                SortBy::Latency,
-                SortType::Neutral,
-                DataRepr::Bytes
-            ),
+            pair1.compare(&pair2, SortBy::Latency, SortType::Neutral, DataRepr::Bytes),
             Ordering::Greater
         );
     }

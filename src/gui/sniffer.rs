@@ -1879,7 +1879,7 @@ mod tests {
                     expanded: true,
                     bpf: "tcp or udp".to_string(),
                 },
-            report_sort_by: Default::default(),
+                report_sort_by: Default::default(),
                 report_sort_type: SortType::Ascending,
                 host_sort_type: SortType::Descending,
                 service_sort_type: SortType::Descending,
