@@ -113,6 +113,7 @@ This workflow outlines the best practices for an autonomous coding agent to ensu
 
 2.  **Adhere to Conventions:**
     *   Ensure all new or modified code strictly conforms to the coding style, patterns, and conventions identified during the analysis phase. The goal is for the agent's code to be indistinguishable from code written by the project's original developers.
+    *   **Formatting:** For Rust projects, always use `rustfmt` to ensure the strictest adherence to the established code style. Run `cargo fmt` after making changes.
 
 ### Phase 4: Rigorous Self-Verification (State Awareness)
 
