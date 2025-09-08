@@ -9,6 +9,7 @@ use crate::networking::types::arp_type::ArpType;
 use crate::networking::types::data_representation::DataRepr;
 use crate::networking::types::icmp_type::IcmpType;
 use crate::networking::types::traffic_direction::TrafficDirection;
+use crate::report::types::sort_by::SortBy;
 use crate::report::types::sort_type::SortType;
 use crate::utils::types::timestamp::Timestamp;
 
@@ -37,6 +38,10 @@ pub struct InfoAddressPortPair {
     pub icmp_types: HashMap<IcmpType, usize>,
     /// Types of the ARP operations, with the relative count (this is empty if not ARP)
     pub arp_types: HashMap<ArpType, usize>,
+    /// Latency in milliseconds.
+    pub latency: Option<i64>,
+    /// Information about the SYN packet of this connection.
+    pub syn_info: Option<(Timestamp, TrafficDirection)>,
 }
 
 impl InfoAddressPortPair {
@@ -58,6 +63,12 @@ impl InfoAddressPortPair {
                 .and_modify(|v| *v += count)
                 .or_insert(*count);
         }
+        if other.latency.is_some() {
+            self.latency = other.latency;
+        }
+        if other.syn_info.is_some() {
+            self.syn_info = other.syn_info;
+        }
     }
 
     pub fn transmitted_data(&self, data_repr: DataRepr) -> u128 {
@@ -68,14 +79,24 @@ impl InfoAddressPortPair {
         }
     }
 
-    pub fn compare(&self, other: &Self, sort_type: SortType, data_repr: DataRepr) -> Ordering {
+    pub fn compare(
+        &self,
+        other: &Self,
+        sort_by: SortBy,
+        sort_type: SortType,
+        _data_repr: DataRepr,
+    ) -> Ordering {
         match sort_type {
-            SortType::Ascending => self
-                .transmitted_data(data_repr)
-                .cmp(&other.transmitted_data(data_repr)),
-            SortType::Descending => other
-                .transmitted_data(data_repr)
-                .cmp(&self.transmitted_data(data_repr)),
+            SortType::Ascending => match sort_by {
+                SortBy::Packets => self.transmitted_packets.cmp(&other.transmitted_packets),
+                SortBy::Bytes => self.transmitted_bytes.cmp(&other.transmitted_bytes),
+                SortBy::Latency => self.latency.cmp(&other.latency),
+            },
+            SortType::Descending => match sort_by {
+                SortBy::Packets => other.transmitted_packets.cmp(&self.transmitted_packets),
+                SortBy::Bytes => other.transmitted_bytes.cmp(&self.transmitted_bytes),
+                SortBy::Latency => other.latency.cmp(&self.latency),
+            },
             SortType::Neutral => other.final_timestamp.cmp(&self.final_timestamp),
         }
     }
@@ -85,22 +106,25 @@ impl InfoAddressPortPair {
 mod tests {
     use super::*;
     use crate::networking::types::data_representation::DataRepr;
+    use crate::report::types::sort_by::SortBy;
     use crate::report::types::sort_type::SortType;
 
     #[test]
     fn test_info_address_port_pair_data() {
-        let pair1 = InfoAddressPortPair {
+        let mut pair1 = InfoAddressPortPair {
             transmitted_bytes: 1000,
             transmitted_packets: 10,
             final_timestamp: Timestamp::new(8, 1300),
             ..Default::default()
         };
-        let pair2 = InfoAddressPortPair {
+        pair1.latency = Some(100);
+        let mut pair2 = InfoAddressPortPair {
             transmitted_bytes: 1100,
             transmitted_packets: 8,
             final_timestamp: Timestamp::new(15, 0),
             ..Default::default()
         };
+        pair2.latency = Some(200);
 
         assert_eq!(pair1.transmitted_data(DataRepr::Bytes), 1000);
         assert_eq!(pair1.transmitted_data(DataRepr::Packets), 10);
@@ -110,42 +134,80 @@ mod tests {
         assert_eq!(pair2.transmitted_data(DataRepr::Packets), 8);
         assert_eq!(pair2.transmitted_data(DataRepr::Bits), 8800);
 
+        // Sort by bytes
         assert_eq!(
-            pair1.compare(&pair2, SortType::Ascending, DataRepr::Bytes),
+            pair1.compare(&pair2, SortBy::Bytes, SortType::Ascending, DataRepr::Bytes),
             Ordering::Less
         );
         assert_eq!(
-            pair1.compare(&pair2, SortType::Descending, DataRepr::Bytes),
+            pair1.compare(
+                &pair2,
+                SortBy::Bytes,
+                SortType::Descending,
+                DataRepr::Bytes
+            ),
             Ordering::Greater
         );
         assert_eq!(
-            pair1.compare(&pair2, SortType::Neutral, DataRepr::Bytes),
+            pair1.compare(&pair2, SortBy::Bytes, SortType::Neutral, DataRepr::Bytes),
             Ordering::Greater
         );
 
+        // Sort by packets
         assert_eq!(
-            pair1.compare(&pair2, SortType::Ascending, DataRepr::Packets),
+            pair1.compare(
+                &pair2,
+                SortBy::Packets,
+                SortType::Ascending,
+                DataRepr::Packets
+            ),
             Ordering::Greater
         );
         assert_eq!(
-            pair1.compare(&pair2, SortType::Descending, DataRepr::Packets),
+            pair1.compare(
+                &pair2,
+                SortBy::Packets,
+                SortType::Descending,
+                DataRepr::Packets
+            ),
             Ordering::Less
         );
         assert_eq!(
-            pair1.compare(&pair2, SortType::Neutral, DataRepr::Packets),
+            pair1.compare(
+                &pair2,
+                SortBy::Packets,
+                SortType::Neutral,
+                DataRepr::Packets
+            ),
             Ordering::Greater
         );
 
+        // Sort by latency
         assert_eq!(
-            pair1.compare(&pair2, SortType::Ascending, DataRepr::Bits),
+            pair1.compare(
+                &pair2,
+                SortBy::Latency,
+                SortType::Ascending,
+                DataRepr::Bytes
+            ),
             Ordering::Less
         );
         assert_eq!(
-            pair1.compare(&pair2, SortType::Descending, DataRepr::Bits),
+            pair1.compare(
+                &pair2,
+                SortBy::Latency,
+                SortType::Descending,
+                DataRepr::Bytes
+            ),
             Ordering::Greater
         );
         assert_eq!(
-            pair1.compare(&pair2, SortType::Neutral, DataRepr::Bits),
+            pair1.compare(
+                &pair2,
+                SortBy::Latency,
+                SortType::Neutral,
+                DataRepr::Bytes
+            ),
             Ordering::Greater
         );
     }

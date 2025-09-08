@@ -129,7 +129,7 @@ pub fn parse_packets(
                         &mut packet_filters_fields,
                     );
 
-                    let Some(key) = key_option else {
+                    let Some((key, tcp_flags)) = key_option else {
                         continue;
                     };
 
@@ -146,6 +146,7 @@ pub fn parse_packets(
                         icmp_type,
                         arp_type,
                         exchanged_bytes,
+                        tcp_flags,
                     );
 
                     info_traffic_msg

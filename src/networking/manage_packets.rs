@@ -32,7 +32,7 @@ pub fn analyze_headers(
     icmp_type: &mut IcmpType,
     arp_type: &mut ArpType,
     packet_filters_fields: &mut PacketFiltersFields,
-) -> Option<AddressPortPair> {
+) -> Option<(AddressPortPair, (bool, bool))> {
     analyze_link_header(
         headers.link,
         &mut mac_addresses.0,
@@ -53,6 +53,8 @@ pub fn analyze_headers(
         return None;
     }
 
+    let mut tcp_flags = (false, false);
+
     if !is_arp
         && !analyze_transport_header(
             headers.transport,
@@ -60,18 +62,20 @@ pub fn analyze_headers(
             &mut packet_filters_fields.dport,
             &mut packet_filters_fields.protocol,
             icmp_type,
+            &mut tcp_flags,
         )
     {
         return None;
     }
 
-    Some(AddressPortPair::new(
+    let key = AddressPortPair::new(
         packet_filters_fields.source,
         packet_filters_fields.sport,
         packet_filters_fields.dest,
         packet_filters_fields.dport,
         packet_filters_fields.protocol,
-    ))
+    );
+    Some((key, tcp_flags))
 }
 
 /// This function analyzes the data link layer header passed as parameter and updates variables
@@ -181,6 +185,7 @@ fn analyze_transport_header(
     port2: &mut Option<u16>,
     protocol: &mut Protocol,
     icmp_type: &mut IcmpType,
+    tcp_flags: &mut (bool, bool),
 ) -> bool {
     match transport_header {
         Some(TransportHeader::Udp(udp_header)) => {
@@ -193,6 +198,8 @@ fn analyze_transport_header(
             *port1 = Some(tcp_header.source_port);
             *port2 = Some(tcp_header.destination_port);
             *protocol = Protocol::TCP;
+            tcp_flags.0 = tcp_header.syn;
+            tcp_flags.1 = tcp_header.ack;
             true
         }
         Some(TransportHeader::Icmpv4(icmpv4_header)) => {
@@ -273,6 +280,7 @@ pub fn modify_or_insert_in_map(
     icmp_type: IcmpType,
     arp_type: ArpType,
     exchanged_bytes: u128,
+    tcp_flags: (bool, bool),
 ) -> (TrafficDirection, Service) {
     let mut traffic_direction = TrafficDirection::default();
     let mut service = Service::Unknown;
@@ -296,6 +304,33 @@ pub fn modify_or_insert_in_map(
     }
 
     let timestamp = info_traffic_msg.last_packet_timestamp;
+
+    if tcp_flags.0 && !tcp_flags.1 {
+        // SYN packet
+        // We need to store the timestamp of this SYN packet, to be able to calculate the latency
+        // when the corresponding SYN-ACK packet is received.
+        // The key of the SYN-ACK packet will be the inverse of the current key.
+        if let Some(info) = info_traffic_msg.map.get_mut(&key.to_inversed_key()) {
+            info.syn_info = Some((timestamp, traffic_direction));
+        }
+    } else if tcp_flags.0 && tcp_flags.1 {
+        // SYN-ACK packet
+        // This is the ACK to a SYN packet.
+        // We can now calculate the latency.
+        if let Some(info) = info_traffic_msg.map.get_mut(key) {
+            if let Some((syn_timestamp, syn_traffic_direction)) = info.syn_info {
+                if syn_traffic_direction.eq(&traffic_direction) {
+                    if let (Some(ts), Some(syn_ts)) =
+                        (timestamp.to_usecs(), syn_timestamp.to_usecs())
+                    {
+                        info.latency = Some((ts - syn_ts) / 1000);
+                    }
+                    info.syn_info = None;
+                }
+            }
+        }
+    }
+
     let new_info = info_traffic_msg
         .map
         .entry(*key)
@@ -335,6 +370,8 @@ pub fn modify_or_insert_in_map(
             } else {
                 HashMap::new()
             },
+            latency: None,
+            syn_info: None,
         });
 
     (new_info.traffic_direction, new_info.service)

@@ -123,6 +123,7 @@ mod tests {
                 thumbnail_position: PositionTuple(20.0, 20.0),
             },
             capture_source_picklist: CaptureSourcePicklist::File,
+            report_sort_by: Default::default(),
             report_sort_type: SortType::Ascending,
             host_sort_type: SortType::Descending,
             service_sort_type: SortType::Neutral,

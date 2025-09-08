@@ -41,4 +41,14 @@ impl AddressPortPair {
             protocol,
         }
     }
+
+    pub fn to_inversed_key(&self) -> Self {
+        Self {
+            address1: self.address2,
+            port1: self.port2,
+            address2: self.address1,
+            port2: self.port1,
+            protocol: self.protocol,
+        }
+    }
 }

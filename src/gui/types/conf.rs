@@ -6,6 +6,7 @@ use crate::gui::types::filters::Filters;
 use crate::gui::types::settings::Settings;
 use crate::networking::types::capture_context::CaptureSourcePicklist;
 use crate::networking::types::config_device::ConfigDevice;
+use crate::report::types::sort_by::SortBy;
 use crate::report::types::sort_type::SortType;
 #[cfg(not(test))]
 use crate::utils::error_logger::{ErrorLogger, Location};
@@ -30,6 +31,8 @@ pub struct Conf {
     pub capture_source_picklist: CaptureSourcePicklist,
     /// BPF filter program to be applied to the capture
     pub filters: Filters,
+    /// Report sort by (inspect page)
+    pub report_sort_by: SortBy,
     /// Report sort type (inspect page)
     pub report_sort_type: SortType,
     /// Host sort type (overview page)

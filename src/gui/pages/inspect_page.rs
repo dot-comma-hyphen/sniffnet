@@ -31,6 +31,7 @@ use crate::networking::types::traffic_direction::TrafficDirection;
 use crate::report::get_report_entries::get_searched_entries;
 use crate::report::types::report_col::ReportCol;
 use crate::report::types::search_parameters::{FilterInputType, SearchParameters};
+use crate::report::types::sort_by::SortBy;
 use crate::report::types::sort_type::SortType;
 use crate::translations::translations_2::{
     administrative_entity_translation, country_translation, domain_name_translation,
@@ -76,6 +77,7 @@ pub fn inspect_page(sniffer: &Sniffer) -> Container<'_, Message, StyleType> {
             language,
             &sniffer.search,
             font,
+            sniffer.conf.report_sort_by,
             sniffer.conf.report_sort_type,
             sniffer.traffic_chart.data_repr,
         ))
@@ -99,7 +101,7 @@ pub fn inspect_page(sniffer: &Sniffer) -> Container<'_, Message, StyleType> {
                 .align_y(Alignment::Center)
                 .align_x(Alignment::Center)
                 .padding(Padding::new(7.0).top(10).bottom(3))
-                .width(947)
+                .width(1042)
                 .class(ContainerType::BorderedRound),
         );
 
@@ -185,6 +187,7 @@ fn report_header_row(
     language: Language,
     search_params: &SearchParameters,
     font: Font,
+    sort_by: SortBy,
     sort_type: SortType,
     data_repr: DataRepr,
 ) -> Row<'_, Message, StyleType> {
@@ -217,8 +220,8 @@ fn report_header_row(
             .width(report_col.get_width())
             .height(56)
             .push(title_tooltip);
-        if report_col == ReportCol::Data {
-            col_header = col_header.push(sort_arrows(sort_type));
+        if report_col == ReportCol::Data || report_col == ReportCol::Latency {
+            col_header = col_header.push(sort_arrows(report_col, sort_by, sort_type));
         } else {
             col_header = col_header.push(
                 Container::new(filter_input(
@@ -271,16 +274,40 @@ fn title_report_col_display(
     }
 }
 
-fn sort_arrows<'a>(active_sort_type: SortType) -> Container<'a, Message, StyleType> {
+fn sort_arrows<'a>(
+    report_col: ReportCol,
+    active_sort_by: SortBy,
+    active_sort_type: SortType,
+) -> Container<'a, Message, StyleType> {
+    let mut sort_by = SortBy::Packets;
+    if report_col == ReportCol::Data {
+        sort_by = SortBy::Bytes;
+    } else if report_col == ReportCol::Latency {
+        sort_by = SortBy::Latency;
+    }
+
+    let is_active = sort_by == active_sort_by;
+
     Container::new(
         button(
-            active_sort_type
-                .icon()
-                .align_x(Alignment::Center)
-                .align_y(Alignment::Center),
+            if is_active {
+                active_sort_type.icon()
+            } else {
+                SortType::Neutral.icon()
+            }
+            .align_x(Alignment::Center)
+            .align_y(Alignment::Center),
         )
-        .class(active_sort_type.button_type())
-        .on_press(Message::ReportSortSelection(active_sort_type.next_sort())),
+        .class(if is_active {
+            active_sort_type.button_type()
+        } else {
+            SortType::Neutral.button_type()
+        })
+        .on_press(if is_active {
+            Message::ReportSortSelection(active_sort_type.next_sort())
+        } else {
+            Message::ReportSortBySelection(sort_by)
+        }),
     )
     .align_y(Alignment::Center)
     .height(Length::Fill)
