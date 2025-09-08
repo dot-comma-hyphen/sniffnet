@@ -32,7 +32,7 @@ pub fn analyze_headers(
     icmp_type: &mut IcmpType,
     arp_type: &mut ArpType,
     packet_filters_fields: &mut PacketFiltersFields,
-) -> Option<AddressPortPair> {
+) -> Option<(AddressPortPair, (bool, bool))> {
     analyze_link_header(
         headers.link,
         &mut mac_addresses.0,
@@ -53,6 +53,8 @@ pub fn analyze_headers(
         return None;
     }
 
+    let mut tcp_flags = (false, false);
+
     if !is_arp
         && !analyze_transport_header(
             headers.transport,
@@ -60,18 +62,20 @@ pub fn analyze_headers(
             &mut packet_filters_fields.dport,
             &mut packet_filters_fields.protocol,
             icmp_type,
+            &mut tcp_flags,
         )
     {
         return None;
     }
 
-    Some(AddressPortPair::new(
+    let key = AddressPortPair::new(
         packet_filters_fields.source,
         packet_filters_fields.sport,
         packet_filters_fields.dest,
         packet_filters_fields.dport,
         packet_filters_fields.protocol,
-    ))
+    );
+    Some((key, tcp_flags))
 }
 
 /// This function analyzes the data link layer header passed as parameter and updates variables
@@ -181,6 +185,7 @@ fn analyze_transport_header(
     port2: &mut Option<u16>,
     protocol: &mut Protocol,
     icmp_type: &mut IcmpType,
+    tcp_flags: &mut (bool, bool),
 ) -> bool {
     match transport_header {
         Some(TransportHeader::Udp(udp_header)) => {
@@ -193,6 +198,8 @@ fn analyze_transport_header(
             *port1 = Some(tcp_header.source_port);
             *port2 = Some(tcp_header.destination_port);
             *protocol = Protocol::TCP;
+            tcp_flags.0 = tcp_header.syn;
+            tcp_flags.1 = tcp_header.ack;
             true
         }
         Some(TransportHeader::Icmpv4(icmpv4_header)) => {
@@ -273,30 +280,72 @@ pub fn modify_or_insert_in_map(
     icmp_type: IcmpType,
     arp_type: ArpType,
     exchanged_bytes: u128,
+    tcp_flags: (bool, bool),
 ) -> (TrafficDirection, Service) {
-    let mut traffic_direction = TrafficDirection::default();
-    let mut service = Service::Unknown;
+    let timestamp = info_traffic_msg.last_packet_timestamp;
 
-    if !info_traffic_msg.map.contains_key(key) {
-        // first occurrence of key (in this time interval)
+    let (traffic_direction, service) =
+        if let Some(info) = info_traffic_msg.map.get(key) {
+            (info.traffic_direction, info.service)
+        } else {
+            let my_interface_addresses = cs.get_addresses();
+            let direction = get_traffic_direction(
+                &key.address1,
+                &key.address2,
+                key.port1,
+                key.port2,
+                my_interface_addresses,
+            );
+            let service = get_service(key, direction, my_interface_addresses);
+            (direction, service)
+        };
 
-        let my_interface_addresses = cs.get_addresses();
-        // determine traffic direction
-        let source_ip = &key.address1;
-        let destination_ip = &key.address2;
-        traffic_direction = get_traffic_direction(
-            source_ip,
-            destination_ip,
-            key.port1,
-            key.port2,
-            my_interface_addresses,
-        );
-        // determine upper layer service
-        service = get_service(key, traffic_direction, my_interface_addresses);
+    // manage latency
+    if key.protocol == Protocol::TCP {
+        if tcp_flags.0 && !tcp_flags.1 {
+            // SYN packet
+            let inverse_key = key.to_inversed_key();
+            let my_interface_addresses = cs.get_addresses();
+            let inverse_direction = get_traffic_direction(
+                &inverse_key.address1,
+                &inverse_key.address2,
+                inverse_key.port1,
+                inverse_key.port2,
+                my_interface_addresses,
+            );
+            let inverse_service =
+                get_service(&inverse_key, inverse_direction, my_interface_addresses);
+
+            info_traffic_msg
+                .map
+                .entry(inverse_key)
+                .or_insert_with(|| InfoAddressPortPair {
+                    traffic_direction: inverse_direction,
+                    service: inverse_service,
+                    ..Default::default()
+                })
+                .syn_info = Some((timestamp, traffic_direction));
+        } else if tcp_flags.0 && tcp_flags.1 {
+            // SYN-ACK packet
+            if let Some(info) = info_traffic_msg.map.get_mut(key) {
+                if let Some((syn_timestamp, syn_traffic_direction)) = info.syn_info {
+                    if syn_traffic_direction != traffic_direction {
+                        if let (Some(ts), Some(syn_ts)) =
+                            (timestamp.to_usecs(), syn_timestamp.to_usecs())
+                        {
+                            let latency = (ts - syn_ts) / 1000;
+                            if latency >= 0 {
+                                info.latency = Some(latency);
+                            }
+                        }
+                        info.syn_info = None;
+                    }
+                }
+            }
+        }
     }
 
-    let timestamp = info_traffic_msg.last_packet_timestamp;
-    let new_info = info_traffic_msg
+    let info = info_traffic_msg
         .map
         .entry(*key)
         .and_modify(|info| {
@@ -335,9 +384,11 @@ pub fn modify_or_insert_in_map(
             } else {
                 HashMap::new()
             },
+            latency: None,
+            syn_info: None,
         });
 
-    (new_info.traffic_direction, new_info.service)
+    (info.traffic_direction, info.service)
 }
 
 /// Returns the traffic direction observed (incoming or outgoing)

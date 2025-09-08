@@ -278,6 +278,10 @@ impl Sniffer {
                 self.page_number = 1;
                 self.conf.report_sort_type = sort;
             }
+            Message::ReportSortBySelection(sort_by) => {
+                self.page_number = 1;
+                self.conf.report_sort_by = sort_by;
+            }
             Message::OpenWebPage(web_page) => Self::open_web(&web_page),
             Message::Start => {
                 if self.is_capture_source_consistent() {
@@ -1875,6 +1879,7 @@ mod tests {
                     expanded: true,
                     bpf: "tcp or udp".to_string(),
                 },
+            report_sort_by: Default::default(),
                 report_sort_type: SortType::Ascending,
                 host_sort_type: SortType::Descending,
                 service_sort_type: SortType::Descending,

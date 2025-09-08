@@ -11,6 +11,7 @@ use crate::networking::types::host::{Host, HostMessage};
 use crate::networking::types::info_traffic::InfoTraffic;
 use crate::notifications::types::notifications::Notification;
 use crate::report::types::search_parameters::SearchParameters;
+use crate::report::types::sort_by::SortBy;
 use crate::report::types::sort_type::SortType;
 use crate::utils::types::file_info::FileInfo;
 use crate::utils::types::web_page::WebPage;
@@ -35,6 +36,8 @@ pub enum Message {
     DataReprSelection(DataRepr),
     /// Select report sort type to be displayed (inspect page)
     ReportSortSelection(SortType),
+    /// Select report sort by to be displayed (inspect page)
+    ReportSortBySelection(SortBy),
     /// Select host sort type to be displayed (overview page)
     HostSortSelection(SortType),
     /// Select service sort type to be displayed (overview page)

@@ -23,17 +23,19 @@ pub enum ReportCol {
     DstPort,
     Proto,
     Service,
+    Latency,
     Data,
 }
 
 impl ReportCol {
-    pub(crate) const ALL: [ReportCol; 7] = [
+    pub(crate) const ALL: [ReportCol; 8] = [
         ReportCol::SrcIp,
         ReportCol::SrcPort,
         ReportCol::DstIp,
         ReportCol::DstPort,
         ReportCol::Proto,
         ReportCol::Service,
+        ReportCol::Latency,
         ReportCol::Data,
     ];
 
@@ -45,6 +47,7 @@ impl ReportCol {
             ReportCol::SrcPort | ReportCol::DstPort => port_translation(language).to_string(),
             ReportCol::Proto => protocol_translation(language).to_string(),
             ReportCol::Service => service_translation(language).to_string(),
+            ReportCol::Latency => "Latency".to_string(),
             ReportCol::Data => {
                 let mut str = data_repr.get_label(language).to_string();
                 str.remove(0).to_uppercase().to_string() + &str
@@ -60,6 +63,7 @@ impl ReportCol {
             ReportCol::DstIp | ReportCol::DstPort => {
                 format!(" ({})", destination_translation(language).to_lowercase())
             }
+            ReportCol::Latency => " (ms)".to_string(),
             _ => String::new(),
         }
     }
@@ -89,6 +93,13 @@ impl ReportCol {
             }
             ReportCol::Proto => key.protocol.to_string(),
             ReportCol::Service => val.service.to_string(),
+            ReportCol::Latency => {
+                if let Some(latency) = val.latency {
+                    latency.to_string()
+                } else {
+                    "—".to_string()
+                }
+            }
             ReportCol::Data => data_repr.formatted_string(val.transmitted_data(data_repr)),
         }
     }
@@ -122,7 +133,8 @@ impl ReportCol {
             ReportCol::DstPort => FilterInputType::PortDst,
             ReportCol::Proto => FilterInputType::Proto,
             ReportCol::Service => FilterInputType::Service,
-            ReportCol::Data => FilterInputType::Country, // just to not panic...
+            ReportCol::Latency => FilterInputType::Country, // just to not panic...
+            ReportCol::Data => FilterInputType::Country,    // just to not panic...
         }
     }
 }
